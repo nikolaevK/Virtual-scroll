@@ -1,7 +1,9 @@
+import Simple from "./examples/Simple";
+
 function App() {
   return (
     <>
-      <div className="bg-red-400">Hello world</div>
+      <Simple />
     </>
   );
 }
