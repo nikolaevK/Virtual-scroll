@@ -6,7 +6,7 @@ const DEFAULT_SCROLLING_DELAY = 150;
 interface useFixedSizeListInterface {
   itemHeight: number;
   itemsCount: number;
-  listHeight: number;
+  // listHeight: number;
   overScan?: number;
   scrollDelay?: number;
   getScrollElement: () => HTMLElement | null;
@@ -16,12 +16,34 @@ export function useFixedSizeList({
   getScrollElement,
   itemHeight,
   itemsCount,
-  listHeight,
   overScan,
   scrollDelay,
 }: useFixedSizeListInterface) {
+  const [listHeight, setListHeight] = useState(0);
   const [scrollTop, setScrollTop] = useState(0);
   const [scrolling, setScrolling] = useState(false);
+
+  useLayoutEffect(() => {
+    const scrollElement = getScrollElement();
+
+    if (!scrollElement) return;
+
+    const resizeObserver = new ResizeObserver(([entry]) => {
+      if (!entry) return;
+
+      const height =
+        entry.borderBoxSize[0]?.blockSize ??
+        entry.target.getBoundingClientRect().height;
+
+      setListHeight(height);
+    });
+
+    resizeObserver.observe(scrollElement);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [getScrollElement]);
 
   useLayoutEffect(() => {
     const scrollElement = getScrollElement();
@@ -46,7 +68,7 @@ export function useFixedSizeList({
 
     if (!scrollElement) return;
 
-    let timeoutId: NodeJS.Timeout | null = null;
+    let timeoutId: number | null = null;
 
     const handleScrollingLoadIndicator = () => {
       setScrolling(true);

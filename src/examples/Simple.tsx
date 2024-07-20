@@ -16,7 +16,6 @@ export default function Simple() {
   const { TOTAL_LIST_HEIGHT, scrolling, virtualItems } = useFixedSizeList({
     getScrollElement: useCallback(() => scrollElementRef.current, []),
     itemHeight: ITEM_HEIGHT,
-    listHeight: 600,
     itemsCount: listItems.length,
   });
 
