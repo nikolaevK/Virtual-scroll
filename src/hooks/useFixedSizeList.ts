@@ -4,9 +4,8 @@ const DEFAULT_OVERSCAN = 3;
 const DEFAULT_SCROLLING_DELAY = 150;
 
 interface useFixedSizeListInterface {
-  itemHeight: number;
+  itemHeight: (index: number) => number;
   itemsCount: number;
-  // listHeight: number;
   overScan?: number;
   scrollDelay?: number;
   getScrollElement: () => HTMLElement | null;
@@ -23,6 +22,7 @@ export function useFixedSizeList({
   const [scrollTop, setScrollTop] = useState(0);
   const [scrolling, setScrolling] = useState(false);
 
+  // Calculates dynamic container height/listHeight based on user css property assigned to the container
   useLayoutEffect(() => {
     const scrollElement = getScrollElement();
 
@@ -91,38 +91,54 @@ export function useFixedSizeList({
     };
   }, [getScrollElement]);
 
-  const { endIndex, startIndex, virtualItems } = useMemo(() => {
-    const rangeStart = scrollTop; // position of a scroll on the top of the container, from the top of the items scrolled
-    const rangeEnd = scrollTop + listHeight; // distance scrolled from the beginning plus size of the container to account for its size
+  const { endIndex, startIndex, virtualItems, totalHeight, allItems } =
+    useMemo(() => {
+      const rangeStart = scrollTop; // position of a scroll on the top of the container, from the top of the items scrolled
+      const rangeEnd = scrollTop + listHeight; // distance scrolled from the beginning plus size of the container to account for its size
 
-    // Find and calculate the beginning position where elements range should start
-    // Find and calculate the end position where elements range should end
-    let startIndex = Math.floor(rangeStart / itemHeight);
-    let endIndex = Math.ceil(rangeEnd / itemHeight);
+      let totalHeight = 0;
+      let startIndex = -1;
+      let endIndex = -1;
+      const allRows: { index: number; offsetTop: number; height: number }[] =
+        Array(itemsCount);
 
-    // Accounting for potential negative number when startIndex 0
-    startIndex = Math.max(
-      0,
-      startIndex - (!!overScan ? overScan : DEFAULT_OVERSCAN)
-    );
-    endIndex = Math.min(
-      itemsCount - 1,
-      endIndex + (!!overScan ? overScan : DEFAULT_OVERSCAN)
-    );
+      for (let index = 0; index <= itemsCount; index++) {
+        const row = {
+          index,
+          height: itemHeight(index),
+          offsetTop: totalHeight,
+        };
 
-    let virtualItems: { index: number; offsetTop: number }[] = [];
+        totalHeight += row.height;
+        allRows[index] = row;
 
-    for (let index = startIndex; index <= endIndex; index++) {
-      virtualItems.push({
-        index,
-        offsetTop: index * itemHeight,
-      });
-    }
+        // overscan is additional elements, needed when scrolling to not see white space
+        // in the beginning there is no overscan due to the limits of an array
+        // scroll down, there will be additional three elements until the end of the array
+        // thats why Math.min is needed, to not exceed the size of the list
+        if (startIndex === -1 && row.offsetTop + row.height > rangeStart) {
+          startIndex = Math.max(
+            0,
+            index - (!!overScan ? overScan : DEFAULT_OVERSCAN)
+          );
+        }
+        if (endIndex === -1 && row.offsetTop + row.height >= rangeEnd) {
+          endIndex = Math.min(
+            itemsCount - 1,
+            index + (!!overScan ? overScan : DEFAULT_OVERSCAN)
+          );
+        }
+      }
+      const virtualItems = allRows.slice(startIndex, endIndex + 1);
 
-    return { virtualItems, startIndex, endIndex };
-  }, [scrollTop, itemsCount, listHeight]);
+      return {
+        virtualItems,
+        startIndex,
+        endIndex,
+        allItems: allRows,
+        totalHeight,
+      };
+    }, [scrollTop, itemsCount, listHeight, itemHeight, overScan]);
 
-  const TOTAL_LIST_HEIGHT = itemsCount * itemHeight;
-
-  return { virtualItems, TOTAL_LIST_HEIGHT, startIndex, endIndex, scrolling };
+  return { virtualItems, totalHeight, startIndex, endIndex, scrolling };
 }

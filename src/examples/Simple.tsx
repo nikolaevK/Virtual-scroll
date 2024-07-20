@@ -6,16 +6,15 @@ const items = Array.from({ length: 10_000 }, (_, index) => ({
   text: String(index),
 }));
 
-const ITEM_HEIGHT = 40;
 const CONTAINER_HEIGHT = 600;
 
 export default function Simple() {
   const [listItems, setListItems] = useState(items);
   const scrollElementRef = useRef<HTMLDivElement>(null);
 
-  const { TOTAL_LIST_HEIGHT, scrolling, virtualItems } = useFixedSizeList({
+  const { totalHeight, scrolling, virtualItems } = useFixedSizeList({
     getScrollElement: useCallback(() => scrollElementRef.current, []),
-    itemHeight: ITEM_HEIGHT,
+    itemHeight: () => 40 + 10 * Math.random(),
     itemsCount: listItems.length,
   });
 
@@ -34,27 +33,23 @@ export default function Simple() {
       <div
         className={"relative overflow-auto border border-solid border-gray-300"}
         style={{
-          height: `${CONTAINER_HEIGHT}px`,
+          height: CONTAINER_HEIGHT,
         }}
         ref={scrollElementRef}
       >
         {/* container which scrolls vertically for the length of the list */}
-        <div
-          style={{
-            height: TOTAL_LIST_HEIGHT,
-          }}
-        >
+        <div style={{ height: totalHeight }}>
           {virtualItems.map((virtualItem) => {
             let item = listItems[virtualItem.index];
 
             return (
               <div
                 key={item.id}
-                className={`absolute top-0 h-[${ITEM_HEIGHT}px] py-1.5 px-3`}
+                className={`absolute top-0 py-1.5 px-3`}
                 // offset is needed to display the item in a right place within the container
                 style={{
                   transform: `translateY(${virtualItem.offsetTop}px)`,
-                  height: `${ITEM_HEIGHT}`,
+                  height: virtualItem.height,
                 }}
               >
                 {scrolling ? "loading..." : item.text}
