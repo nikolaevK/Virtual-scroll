@@ -130,7 +130,7 @@ export function useFixedSizeList({
         }
       }
       const virtualItems = allRows.slice(startIndex, endIndex + 1);
-
+      console.log(virtualItems.length);
       return {
         virtualItems,
         startIndex,

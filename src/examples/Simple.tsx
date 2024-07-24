@@ -1,7 +1,7 @@
 import React, { useCallback, useRef, useState } from "react";
 import { useFixedSizeList } from "../hooks/useFixedSizeList";
 
-const items = Array.from({ length: 10_000 }, (_, index) => ({
+const items = Array.from({ length: 100 }, (_, index) => ({
   id: Math.random().toString(36).slice(2),
   text: String(index),
 }));
