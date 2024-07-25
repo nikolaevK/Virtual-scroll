@@ -218,6 +218,7 @@ export function useDynamicSizeList(props: useDynamicSizeListInterface) {
     scrollTop,
   });
 
+  // Goes on every item in virtualScroll
   const itemsResizeObserver = useMemo(() => {
     const ro = new ResizeObserver((entries) => {
       entries.forEach((entry) => {
@@ -256,6 +257,7 @@ export function useDynamicSizeList(props: useDynamicSizeListInterface) {
           return;
         }
 
+        // Correction scroll. Fixes The issue of scroll adjustment/scroll height
         const item = allItems[index];
         const delta = height - item.height;
 
@@ -297,6 +299,7 @@ export function useDynamicSizeList(props: useDynamicSizeListInterface) {
 
     const key = getItemKey(index);
 
+    // Watches the resize of items and updates them
     itemsResizeObserver.observe(element);
 
     if (!!itemSizeCache[key]) {
@@ -305,6 +308,7 @@ export function useDynamicSizeList(props: useDynamicSizeListInterface) {
 
     const size = element.getBoundingClientRect();
 
+    // Correction scroll. Fixes The issue of scroll adjustment/scroll height
     const item = allItems[index];
     const delta = size.height - allItems[index].height;
 
