@@ -2,7 +2,7 @@ import React, { useCallback, useRef, useState } from "react";
 import { faker } from "@faker-js/faker";
 import { useDynamicSizeList } from "../hooks/useDynamicSizeList";
 
-const items = Array.from({ length: 10_000 }, (_, index) => ({
+const items = Array.from({ length: 1000 }, (_, index) => ({
   id: Math.random().toString(36).slice(2),
   text: faker.lorem.paragraphs({
     min: 3,
@@ -63,12 +63,12 @@ export default function Medium() {
                   transform: `translateY(${virtualItem.offsetTop}px)`,
                   padding: "6px 12px",
                   //   border: "1px solid lightgrey",
-                  //   height: virtualItem.height,
+                  // height: virtualItem.height,
                 }}
               >
-                {scrolling
-                  ? "loading..."
-                  : `${virtualItem.index} - ${item.text}`}
+                {/* DO NOT PUT LOADING STATE HERE. 
+                IT PREVENTS THE MEASUREMENT OF THE HEIGHT OF THE ELEMENT WHEN SCROLLING */}
+                {virtualItem.index} - {item.text}
               </div>
             );
           })}

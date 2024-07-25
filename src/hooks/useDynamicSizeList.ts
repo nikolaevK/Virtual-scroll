@@ -198,7 +198,6 @@ export function useDynamicSizeList(props: useDynamicSizeListInterface) {
         endIndex,
         allItems: allRows,
         totalHeight,
-        itemSizeCache,
       };
     }, [
       scrollTop,
@@ -257,16 +256,15 @@ export function useDynamicSizeList(props: useDynamicSizeListInterface) {
           return;
         }
 
-        // const item = allItems[index];
-        // const delta = height - item.height;
+        const item = allItems[index];
+        const delta = height - item.height;
 
-        // console.log("inside observers");
-        // if (delta !== 0) {
-        //   const element = getScrollElement();
-        //   if (element) {
-        //     element.scrollBy(0, delta);
-        //   }
-        // }
+        if (delta !== 0 && scrollTop > item.offsetTop) {
+          const element = getScrollElement();
+          if (element) {
+            element.scrollBy(0, delta);
+          }
+        }
 
         setItemSizeCache((cache) => ({
           ...cache,
@@ -281,51 +279,44 @@ export function useDynamicSizeList(props: useDynamicSizeListInterface) {
   // The RefCallback function is going to run after the component is mounted, re-rendered or unmounted.
   // Use the useCallback function with an empty dependency array to wrap the callback ref function.
   // this will make sure that React runtime will run this function only on mount and that is it.
-  const measureElement = useCallback(
-    (element: Element | null) => {
-      if (!element) return;
+  const measureElement = useCallback((element: Element | null) => {
+    if (!element) {
+      return;
+    }
 
-      const indexAttribute = element.getAttribute("data-index") || "";
-      const index = parseInt(indexAttribute, 10);
+    const indexAttribute = element.getAttribute("data-index") || "";
+    const index = parseInt(indexAttribute, 10);
 
-      if (Number.isNaN(index)) {
-        console.error(
-          "Dynamic elements must have a valid data-index attribute"
-        );
-        return;
+    if (Number.isNaN(index)) {
+      console.error("Dynamic elements must have a valid data-index attribute");
+      return;
+    }
+
+    const { itemSizeCache, getItemKey, allItems, getScrollElement, scrollTop } =
+      latestData.current;
+
+    const key = getItemKey(index);
+
+    itemsResizeObserver.observe(element);
+
+    if (!!itemSizeCache[key]) {
+      return;
+    }
+
+    const size = element.getBoundingClientRect();
+
+    const item = allItems[index];
+    const delta = size.height - allItems[index].height;
+
+    if (delta !== 0 && scrollTop > item.offsetTop) {
+      const element = getScrollElement();
+      if (element) {
+        element.scrollBy(0, delta);
       }
+    }
 
-      const {
-        itemSizeCache,
-        getItemKey,
-        allItems,
-        getScrollElement,
-        scrollTop,
-      } = latestData.current;
-      const key = getItemKey(index);
-
-      itemsResizeObserver.observe(element);
-
-      if (!!itemSizeCache[key]) {
-        return;
-      }
-
-      const size = element.getBoundingClientRect();
-
-      const item = allItems[index];
-      const delta = size.height - allItems[index].height;
-
-      if (delta !== 0 && scrollTop > item.offsetTop) {
-        const element = getScrollElement();
-        if (element) {
-          element.scrollBy(0, delta);
-        }
-      }
-
-      setItemSizeCache((cache) => ({ ...cache, [key]: size.height }));
-    },
-    [latestData, itemsResizeObserver]
-  );
+    setItemSizeCache((cache) => ({ ...cache, [key]: size.height }));
+  }, []);
 
   return {
     virtualItems,
