@@ -70,6 +70,9 @@ export function useDynamicSizeList(props: useDynamicSizeListInterface) {
 
   // Calculates dynamic container height/listHeight based on user css property assigned to the container
   useLayoutEffect(() => {
+    // DEBUG:
+    console.log("Container height calculation...");
+
     const scrollElement = getScrollElement();
 
     if (!scrollElement) return;
@@ -139,6 +142,9 @@ export function useDynamicSizeList(props: useDynamicSizeListInterface) {
 
   const { endIndex, startIndex, virtualItems, allItems, totalHeight } =
     useMemo(() => {
+      // DEBUG:
+      console.log("useMemo calculate range algorithm");
+
       const getItemHeight = (index: number) => {
         if (itemHeight) {
           return itemHeight(index);
@@ -146,6 +152,8 @@ export function useDynamicSizeList(props: useDynamicSizeListInterface) {
 
         const key = getItemKey(index);
         if (typeof itemSizeCache[key] === "number") {
+          // DEBUG:
+          console.log("Cache inside range algorithm hit");
           return itemSizeCache[key];
         }
 
@@ -157,6 +165,10 @@ export function useDynamicSizeList(props: useDynamicSizeListInterface) {
       let totalHeight = 0;
       let startIndex = -1;
       let endIndex = -1;
+
+      // DEBUG:
+      // To see how algorithm uses it to calculate range
+      console.log({ listHeight });
 
       const allRows: DynamicSizeListItem[] = Array(itemsCount);
 
@@ -189,6 +201,11 @@ export function useDynamicSizeList(props: useDynamicSizeListInterface) {
           );
         }
       }
+      // DEBUG:
+      console.log("New range based on new measurements:", {
+        startIndex,
+        endIndex,
+      });
 
       const virtualItems = allRows.slice(startIndex, endIndex + 1);
 
@@ -282,7 +299,12 @@ export function useDynamicSizeList(props: useDynamicSizeListInterface) {
   // Use the useCallback function with an empty dependency array to wrap the callback ref function.
   // this will make sure that React runtime will run this function only on mount and that is it.
   const measureElement = useCallback((element: Element | null) => {
+    // DEBUG:
+    console.log("Inside measureElement RefCallback");
+
     if (!element) {
+      // DEBUG:
+      console.log("Extra elements which are not in DOM");
       return;
     }
 
@@ -303,8 +325,13 @@ export function useDynamicSizeList(props: useDynamicSizeListInterface) {
     itemsResizeObserver.observe(element);
 
     if (!!itemSizeCache[key]) {
+      // DEBUG:
+      console.log("Hit cache return when tried to measure measured element");
       return;
     }
+    // DEBUG:
+    // Elements which are not in cache and fired measureElement
+    console.log("Element which needs height measurement", { index });
 
     const size = element.getBoundingClientRect();
 
