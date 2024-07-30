@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useLayoutEffect, useRef, useState } from "react";
 import { faker } from "@faker-js/faker";
 import { useDynamicSizeList } from "../hooks/useDynamicSizeList";
 
@@ -24,6 +24,13 @@ export default function Medium() {
       estimateItemHeight: useCallback(() => 16, []),
       getItemKey: useCallback((index) => listItems[index]!.id, [listItems]),
     });
+
+  // DEBUG: Compare useEffect vs useLayoutEffect
+  // This artificially slows down rendering
+  // let now = performance.now();
+  // while (performance.now() - now < 1000) {
+  //   // Do nothing for a bit...
+  // }
 
   return (
     <div className="px-3 py-0">
