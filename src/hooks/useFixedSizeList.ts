@@ -32,7 +32,7 @@ export function useFixedSizeList({
       if (!entry) return;
 
       const height =
-        entry.borderBoxSize[0]?.blockSize ??
+        entry.contentBoxSize[0]?.blockSize ??
         entry.target.getBoundingClientRect().height;
 
       setListHeight(height);
@@ -130,7 +130,6 @@ export function useFixedSizeList({
         }
       }
       const virtualItems = allRows.slice(startIndex, endIndex + 1);
-      console.log(virtualItems.length);
       return {
         virtualItems,
         startIndex,

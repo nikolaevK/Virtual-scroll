@@ -52,7 +52,7 @@ export default function Simple() {
                   height: virtualItem.height,
                 }}
               >
-                {scrolling ? "loading..." : item.text}
+                {item.text}
               </div>
             );
           })}

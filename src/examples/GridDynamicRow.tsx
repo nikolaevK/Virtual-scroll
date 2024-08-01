@@ -1,6 +1,5 @@
-import React, { useCallback, useLayoutEffect, useRef, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import { faker } from "@faker-js/faker";
-import { useDynamicSizeList } from "../hooks/useDynamicSizeList";
 import { useDynamicGrid } from "../hooks/useDynamicGrid";
 
 const CONTAINER_HEIGHT = 600;
@@ -15,23 +14,23 @@ const createItems = () =>
     })),
   }));
 
-export default function Grid() {
+export default function GridDynamicRow() {
   const [gridItems, setGridItems] = useState(createItems);
   const scrollElementRef = useRef<HTMLDivElement>(null);
 
   const {
     totalHeight,
     virtualItems,
-    measureElement,
+    measureElementHeight,
     totalWidth,
     virtualColumns,
   } = useDynamicGrid({
     getScrollElement: useCallback(() => scrollElementRef.current, []),
     rowsCount: gridSize,
-    columnsCount: gridSize + 1,
-    columnWidth: useCallback(() => 200, []),
+    columnsCount: gridSize,
+    columnWidth: useCallback(() => 150, []),
     getColumnKey: useCallback((index) => index, []),
-    estimateRowHeight: useCallback(() => 16, []),
+    estimateRowHeight: useCallback(() => 30, []),
     getRowKey: useCallback((index) => gridItems[index]!.id, [gridItems]),
   });
 
@@ -78,7 +77,7 @@ export default function Grid() {
             return (
               <div
                 key={item.id}
-                ref={measureElement}
+                ref={measureElementHeight}
                 // this attribute is used in the useDynamicSizeList hook to differentiate items from one another
                 data-index={virtualRow.index}
                 // offset is needed to display the item in a right place within the container
@@ -87,20 +86,16 @@ export default function Grid() {
                   top: 0,
                   transform: `translateY(${virtualRow.offsetTop}px)`,
                   padding: "6px 12px",
-                  border: "1px solid lightgrey",
                   display: "flex",
                 }}
               >
                 {/* DO NOT PUT LOADING STATE HERE. 
                 IT PREVENTS THE MEASUREMENT OF THE HEIGHT OF THE ELEMENT WHEN SCROLLING */}
-                {virtualRow.index}
                 {virtualColumns.map((col, index) => {
                   const column = item.columns[col.index];
                   return (
                     <div
                       style={{
-                        // position: "absolute",
-                        // left: col.offsetLeft,
                         marginLeft: index === 0 ? col.offsetLeft : 0,
                         width: col.width,
                       }}

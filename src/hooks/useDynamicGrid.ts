@@ -19,7 +19,8 @@ interface useDynamicGridInterface {
   estimateRowHeight?: (index: number) => number;
   getRowKey: (index: number) => Key;
   columnsCount: number;
-  columnWidth: (index: number) => number;
+  columnWidth?: (index: number) => number;
+  estimateColumnWidth?: (index: number) => number;
   getColumnKey: (index: number) => Key;
   rowsCount: number;
   overScanY?: number;
@@ -43,17 +44,30 @@ interface DynamicSizeGridColumn {
 
 function validateProps(props: useDynamicGridInterface) {
   // User must provide one of these properties
-  const { rowHeight, estimateRowHeight } = props;
+  const { rowHeight, estimateRowHeight, estimateColumnWidth, columnWidth } =
+    props;
 
   if (!rowHeight && !estimateRowHeight) {
     throw new Error(
-      "User must provide one of these properties: itemHeight OR estimateItemHeight property"
+      "User must provide one of these properties: rowHeight OR estimateRowHeight property"
+    );
+  }
+  if (!columnWidth && !estimateColumnWidth) {
+    throw new Error(
+      "User must provide one of these properties: columnWidth OR estimateColumnWidth property"
+    );
+  }
+
+  // One of these must be static
+  if (!rowHeight && !columnWidth) {
+    throw new Error(
+      "User must provide one of these properties: rowHeight OR columnWidth property"
     );
   }
 }
 
 // Has to do with Concurrent Rendering Model
-// Update our ref with most recent value
+// Update ref with most recent value
 function useLatest<T>(value: T) {
   const valueRef = useRef(value);
   useInsertionEffect(() => {
@@ -77,16 +91,62 @@ export function useDynamicGrid(props: useDynamicGridInterface) {
     getRowKey,
     getColumnKey,
     estimateRowHeight,
+    estimateColumnWidth,
   } = props;
 
   const [rowSizeCache, setRowSizeCache] = useState<Record<Key, number>>({});
+  const [columnSizeCache, setColumnSizeCache] = useState<
+    Record<string, number>
+  >({});
   const [gridHeight, setGridHeight] = useState(0);
   const [gridWidth, setGridWidth] = useState(0);
   const [scrollTop, setScrollTop] = useState(0);
   const [scrollLeft, setScrollLeft] = useState(0);
   const [scrolling, setScrolling] = useState(false);
 
-  // Calculates dynamic container height/listHeight based on user css property assigned to the container
+  // Calculate a list of column widths
+  const calculatedColumnWidths = useMemo(() => {
+    if (columnWidth) {
+      return Array.from({ length: columnsCount }, (_, index) =>
+        columnWidth(index)
+      );
+    }
+
+    const widths: number[] = Array(columnsCount);
+
+    // Max column width
+    for (let columnIndex = 0; columnIndex < columnsCount; columnIndex++) {
+      let maxMeasuredColumnWidth: number | undefined = undefined;
+
+      for (let rowIndex = 0; rowIndex < rowsCount; rowIndex++) {
+        const key = `${getRowKey(rowIndex)}-${getColumnKey(columnIndex)}`;
+        const columnSize = columnSizeCache[key];
+
+        if (typeof columnSize === "number") {
+          maxMeasuredColumnWidth = !!maxMeasuredColumnWidth
+            ? Math.max(maxMeasuredColumnWidth, columnSize)
+            : columnSize;
+        }
+
+        if (typeof maxMeasuredColumnWidth === "number") {
+          widths[columnIndex] = maxMeasuredColumnWidth;
+        } else {
+          widths[columnIndex] = estimateColumnWidth?.(columnIndex) ?? 0;
+        }
+      }
+    }
+    return widths;
+  }, [
+    columnSizeCache,
+    columnsCount,
+    rowsCount,
+    getRowKey,
+    getColumnKey,
+    columnWidth,
+    estimateColumnWidth,
+  ]);
+
+  // Calculates dynamic container height/listHeight and Width based on user css property assigned to the container
   useLayoutEffect(() => {
     // DEBUG:
     console.log("Container height calculation...");
@@ -163,7 +223,7 @@ export function useDynamicGrid(props: useDynamicGridInterface) {
     };
   }, [getScrollElement]);
 
-  // Rows
+  // Rows in the window algorithm
   const { virtualItems, startIndex, endIndex, allItems, totalHeight } =
     useMemo(() => {
       // DEBUG:
@@ -246,7 +306,8 @@ export function useDynamicGrid(props: useDynamicGridInterface) {
       rowSizeCache,
       getRowKey,
     ]);
-  // Columns
+
+  // Columns in the window algorithm
   const {
     virtualColumns,
     columnStartIndex,
@@ -267,7 +328,7 @@ export function useDynamicGrid(props: useDynamicGridInterface) {
       const column = {
         key,
         index,
-        width: columnWidth(index),
+        width: calculatedColumnWidths[index],
         offsetLeft: totalWidth,
       };
 
@@ -280,7 +341,7 @@ export function useDynamicGrid(props: useDynamicGridInterface) {
       ) {
         columnStartIndex = Math.max(
           0,
-          index - (!!overScanY ? overScanY : DEFAULT_OVERSCAN_X)
+          index - (!!overScanX ? overScanX : DEFAULT_OVERSCAN_X)
         );
       }
       if (
@@ -289,7 +350,7 @@ export function useDynamicGrid(props: useDynamicGridInterface) {
       ) {
         columnEndIndex = Math.min(
           rowsCount - 1,
-          index + (!!overScanY ? overScanY : DEFAULT_OVERSCAN_X)
+          index + (!!overScanX ? overScanX : DEFAULT_OVERSCAN_X)
         );
       }
     }
@@ -314,13 +375,17 @@ export function useDynamicGrid(props: useDynamicGridInterface) {
   }, [
     scrollLeft,
     columnsCount,
-    columnWidth,
+    calculatedColumnWidths,
     gridWidth,
     overScanX,
     getColumnKey,
   ]);
 
   const latestData = useLatest({
+    columnSizeCache,
+    allColumns,
+    scrollLeft,
+    getColumnKey,
     rowSizeCache,
     getRowKey,
     allItems,
@@ -391,7 +456,7 @@ export function useDynamicGrid(props: useDynamicGridInterface) {
   // The RefCallback function is going to run after the component is mounted, re-rendered or unmounted.
   // Use the useCallback function with an empty dependency array to wrap the callback ref function.
   // this will make sure that React runtime will run this function only on mount and that is it.
-  const measureElement = useCallback((element: Element | null) => {
+  const measureElementHeight = useCallback((element: Element | null) => {
     // DEBUG:
     console.log("Inside measureElement RefCallback");
 
@@ -442,13 +507,102 @@ export function useDynamicGrid(props: useDynamicGridInterface) {
     setRowSizeCache((cache) => ({ ...cache, [key]: size.height }));
   }, []);
 
+  const measureColumnWidth = useCallback(
+    (
+      element: Element | null,
+      resizeObserver: ResizeObserver,
+      entry?: ResizeObserverEntry
+    ) => {
+      if (!element) {
+        return;
+      }
+
+      if (!element.isConnected) {
+        resizeObserver.unobserve(element);
+        return;
+      }
+
+      const rowIndexAttribute = element.getAttribute("data-index") || "";
+      const rowIndex = parseInt(rowIndexAttribute, 10);
+
+      const columnIndexAttribute =
+        element.getAttribute("data-column-index") || "";
+      const columnIndex = parseInt(columnIndexAttribute, 10);
+
+      if (Number.isNaN(rowIndex) || Number.isNaN(columnIndex)) {
+        console.error(
+          "dynamic rows must have valid `data-column-index` and `data-index` (row) attributes"
+        );
+        return;
+      }
+
+      const {
+        columnSizeCache,
+        getRowKey,
+        getColumnKey,
+        allColumns,
+        scrollLeft,
+      } = latestData.current;
+
+      const key = `${getRowKey(rowIndex)}-${getColumnKey(columnIndex)}`;
+      const isResize = Boolean(entry);
+
+      resizeObserver.observe(element);
+
+      // Optimization, save a rerender
+      // no resize and element is measured
+      if (!isResize && typeof columnSizeCache[key] === "number") {
+        return;
+      }
+
+      const width =
+        entry?.borderBoxSize[0]?.inlineSize ??
+        element.getBoundingClientRect().width;
+
+      if (columnSizeCache[key] === width) {
+        return;
+      }
+
+      setColumnSizeCache((cache) => ({ ...cache, [key]: width }));
+
+      const column = allColumns[columnIndex];
+      const delta = width - column.width;
+
+      if (delta !== 0 && scrollLeft > column.offsetLeft) {
+        const element = getScrollElement();
+        if (element) {
+          element.scrollBy(delta, 0);
+          console.log(delta);
+        }
+      }
+    },
+    [latestData]
+  );
+
+  const columnWidthResizeObserver = useMemo(() => {
+    const ro = new ResizeObserver((entries) => {
+      entries.forEach((entry) => {
+        measureColumnWidth(entry.target, ro, entry);
+      });
+    });
+    return ro;
+  }, []);
+
+  const measureElementWidth = useCallback(
+    (element: Element | null) => {
+      measureColumnWidth(element, columnWidthResizeObserver);
+    },
+    [columnWidthResizeObserver]
+  );
+
   return {
     virtualItems,
     totalHeight,
     startIndex,
     endIndex,
     scrolling,
-    measureElement,
+    measureElementHeight,
+    measureElementWidth,
     allItems,
     virtualColumns,
     columnStartIndex,
